@@ -1,0 +1,6 @@
+JEM BOARD
+M:	Nickolas Dolhyi <0xb000@gmail.com>
+S:	Maintained
+F:	board/amazon/jem/
+F:	include/configs/jem.h
+F:	configs/jem_defconfig

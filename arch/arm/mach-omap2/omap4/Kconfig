@@ -16,6 +16,9 @@ config TARGET_OMAP4_SDP4430
 config TARGET_KC1
 	bool "Amazon Kindle Fire (first generation)"
 
+config TARGET_JEM
+  bool "Amazon Kindle Fire HD 8.9 (LTE)"
+
 endchoice
 
 config SYS_SOC
@@ -25,5 +28,6 @@ source "board/gumstix/duovero/Kconfig"
 source "board/ti/panda/Kconfig"
 source "board/ti/sdp4430/Kconfig"
 source "board/amazon/kc1/Kconfig"
+source "board/amazon/jem/Kconfig"
 
 endif
