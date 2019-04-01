@@ -10,7 +10,8 @@
 
 #include <asm/arch/mux_omap4.h>
 
-#define JEM_GPIO_USB_ID		52
+#define JEM_GPIO_VOLUME_UP		1
+#define JEM_GPIO_VOLUME_DOWN		50
 
 const struct pad_conf_entry core_padconf_array[] = {
 	/* GPMC */

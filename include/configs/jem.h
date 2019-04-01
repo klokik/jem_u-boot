@@ -99,6 +99,8 @@
 /*
  * USB gadget
  */
+// #define CONFIG_USB_DEVICE		1
+// #define CONFIG_USB_TTY			1
 
 /*
  * Environment
@@ -109,20 +111,58 @@
 #define CONFIG_ENV_OVERWRITE
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"kernel_addr_r=0x82000000\0" \
-	"loadaddr=0x82000000\0" \
+  "stdin=serial,vga\0" \
+	"stdout=serial,vga\0" \
+	"stderr=serial,vga\0" \
+	"kernel_addr_r=0x81000000\0" \
+	"loadaddr=0x83000000\0" \
 	"fdt_addr_r=0x88000000\0" \
 	"fdtaddr=0x88000000\0" \
 	"ramdisk_addr_r=0x88080000\0" \
 	"pxefile_addr_r=0x80100000\0" \
 	"scriptaddr=0x80000000\0" \
 	"bootm_size=0x10000000\0" \
+	"usbtty=cdc_acm\0" \
+	"vram=8M\0" \
 	"boot_mmc_dev=0\0" \
-	"kernel_mmc_part=6\0" \
+	"stock_boot_mmc_part=6\0" \
 	"recovery_mmc_part=9\0" \
+	"console=ttyS2,115200n8\0" \
+	"bootargs=console=ttyO2,115200n8\0" \
+	"bootpart=0:7\0" \
+	"bootdir=boot\0" \
 	"fdtfile=omap4-jem.dtb\0" \
-	"bootfile=/boot/extlinux/extlinux.conf\0" \
-	"bootargs=console=ttyO2,115200\0"
+	"bootfile=zImage\0" \
+	"loadfdt=fatload mmc ${bootpart} ${fdtaddr} ${bootdir}/${fdtfile}\0" \
+	"loadimage=fatload mmc ${bootpart} ${loadaddr} ${bootdir}/${bootfile}\0" \
+	"optargs=mem=1G fbcon=rotate:0 loglevel=8 no_console_suspend\0" \
+	"nfsopts=nolock,nfsvers=3\0" \
+	"rootpath=/srv/nfs4/arch_jem\0" \
+	"netargs=setenv bootargs console=${console} " \
+		"${optargs} " \
+		"root=/dev/nfs " \
+		"nfsroot=${serverip}:${rootpath},${nfsopts} rw " \
+		"brcmfmac.blacklist=yes "\
+		"ip=${ipaddr}\0" \
+	"netboot=echo Booting from network ...; " \
+		"run loadimage; " \
+		"run loadfdt; " \
+		"run netargs; " \
+		"bootz ${loadaddr} - ${fdtaddr}\0" \
+	"stockboot=echo Booting uImage from dkernel ...; " \
+		"setenv boot_mmc_part ${stock_boot_mmc_part}; " \
+		"part start mmc ${boot_mmc_dev} ${boot_mmc_part} boot_mmc_start; " \
+		"part size mmc ${boot_mmc_dev} ${boot_mmc_part} boot_mmc_size; " \
+		"mmc dev ${boot_mmc_dev}; " \
+		"mmc read ${kernel_addr_r} ${boot_mmc_start} ${boot_mmc_size}; " \
+		"bootm ${kernel_addr_r};\0" \
+	"localboot=echo Booting from eMMC ...; " \
+		"run loadimage; " \
+		"run loadfdt; " \
+		"env set bootargs console=${console} console=tty0 fbcon=rotate:0 loglevel=8 mem=1G no_console_suspend root=179:14 rootfstype=ext4 rootwait rw; " \
+		"bootz ${loadaddr} - ${fdtaddr}\0" \
+	"ipaddr=10.1.10.9\0"\
+	"serverip=10.1.10.2\0"\
 
 /*
  * ATAGs
@@ -138,9 +178,14 @@
  * BootCONFIG_PRE_CON_BUF_SZ
  */
 
-#define CONFIG_SYS_LOAD_ADDR	0x82000000
+#define CONFIG_SYS_LOAD_ADDR	0x83000000
 
 #define CONFIG_BOOTCOMMAND \
+		"if test ${boot_btn} = 3; then run stockboot; fi; " \
+		"if test ${boot_btn} = 2; then run localboot; fi; " \
+		"if test ${boot_btn} = 1; then echo Skip to 3rd u-boot, todo..., now fastboot; fastboot 0; fi;"
+
+/*#define CONFIG_BOOTCOMMAND \
 	"setenv boot_mmc_part ${kernel_mmc_part}; " \
 	"if test reboot-${reboot-mode} = reboot-r; then " \
 	"echo recovery; setenv boot_mmc_part ${recovery_mmc_part}; fi; " \
@@ -150,12 +195,20 @@
 	"part size mmc ${boot_mmc_dev} ${boot_mmc_part} boot_mmc_size; " \
 	"mmc dev ${boot_mmc_dev}; " \
 	"mmc read ${kernel_addr_r} ${boot_mmc_start} ${boot_mmc_size} && " \
-	"bootm ${kernel_addr_r};"
+	"bootm ${kernel_addr_r};"*/
 
 /*
  * Defaults
  */
 
 #include <config_defaults.h>
+
+// #define CONFIG_MENU
+#define CONFIG_CMD_BOOTMENU
+
+// #define CONFIG_VIDEO
+// #define VIDEO_FB_LITTLE_ENDIAN
+#define VIDEO_FB_16BPP_WORD_SWAP
+// #define CONFIG_VIDEO_FONT_4X6
 
 #endif

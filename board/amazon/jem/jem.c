@@ -17,6 +17,7 @@
 #include <twl6030.h>
 #include "jem.h"
 #include <asm/mach-types.h>
+#include <video_fb.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -61,18 +62,18 @@ struct lpddr2_device_details *emif_get_device_details(u32 emif_nr, u8 cs,
 	return lpddr2_dev_details;
 }
 
-void emif_get_device_timings(u32 emif_nr,
-	const struct lpddr2_device_timings **cs0_device_timings,
-	const struct lpddr2_device_timings **cs1_device_timings)
-{
-	*cs0_device_timings = &elpida_2G_S4_timings;
-	*cs1_device_timings = NULL;
-}
+// void emif_get_device_timings(u32 emif_nr,
+// 	const struct lpddr2_device_timings **cs0_device_timings,
+// 	const struct lpddr2_device_timings **cs1_device_timings)
+// {
+// 	*cs0_device_timings = &elpida_2G_S4_timings;
+// 	*cs1_device_timings = NULL;
+// }
 
 int board_init(void)
 {
 	/* GPMC init */
-	gpmc_init();
+	// gpmc_init();
 
 	/* MACH number */
 	gd->bd->bi_arch_number = MACH_TYPE_OMAP_4430SDP;
@@ -87,19 +88,26 @@ int misc_init_r(void)
 {
 	char reboot_mode[2] = { 0 };
 	u32 data = 0;
-	u32 value;
+	u32 btn_val;
 	int rc;
 
 	/* Reboot mode */
 
 	rc = omap_reboot_mode(reboot_mode, sizeof(reboot_mode));
 
-	/* USB ID pin pull-up indicates factory (fastboot) cable detection. */
-	gpio_request(JEM_GPIO_USB_ID, "USB_ID");
-	gpio_direction_input(JEM_GPIO_USB_ID);
-	value = gpio_get_value(JEM_GPIO_USB_ID);
+	gpio_request(JEM_GPIO_VOLUME_UP, "VolumeUp");
+	gpio_request(JEM_GPIO_VOLUME_DOWN, "VolumeDown");
 
-	if (value)
+	gpio_direction_input(JEM_GPIO_VOLUME_UP);
+	gpio_direction_input(JEM_GPIO_VOLUME_DOWN);
+
+	btn_val = gpio_get_value(JEM_GPIO_VOLUME_UP);
+	btn_val |= gpio_get_value(JEM_GPIO_VOLUME_DOWN) << 1;
+
+	env_set_ulong("boot_btn", btn_val);
+	env_set_ulong("vbus_on_boot", twl6030_input_usb());
+
+	if (0) // if (fastboot cable)
 		reboot_mode[0] = 'b';
 
 	if (rc < 0 || reboot_mode[0] == 'o') {
@@ -179,4 +187,17 @@ int board_mmc_init(bd_t *bis)
 void board_mmc_power_init(void)
 {
 	twl6030_power_mmc_init(1);
+}
+
+GraphicDevice gdev;
+
+void *video_hw_init(void)
+{
+	gdev.frameAdrs = 0x82000000;
+	gdev.winSizeX = 1920;
+	gdev.winSizeY = 1200;
+	gdev.gdfBytesPP = 2;
+	gdev.gdfIndex = GDF_16BIT_565RGB;
+
+	return (void *) &gdev;
 }
