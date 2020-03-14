@@ -8,16 +8,6 @@
 
 #include <linux/types.h>
 
-enum rockchip_pinctrl_type {
-	RV1108,
-	RK3036,
-	RK3128,
-	RK3188,
-	RK3288,
-	RK3368,
-	RK3399,
-};
-
 /**
  * Encode variants of iomux registers into a type variable
  */
@@ -26,6 +16,7 @@ enum rockchip_pinctrl_type {
 #define IOMUX_SOURCE_PMU	BIT(2)
 #define IOMUX_UNROUTED		BIT(3)
 #define IOMUX_WIDTH_3BIT	BIT(4)
+#define IOMUX_8WIDTH_2BIT	BIT(5)
 
 /**
  * Defined some common pins constants
@@ -266,8 +257,6 @@ struct rockchip_pin_ctrl {
 	struct rockchip_pin_bank	*pin_banks;
 	u32				nr_banks;
 	u32				nr_pins;
-	char				*label;
-	enum rockchip_pinctrl_type	type;
 	int				grf_mux_offset;
 	int				pmu_mux_offset;
 	int				grf_drv_offset;
@@ -277,15 +266,14 @@ struct rockchip_pin_ctrl {
 	struct rockchip_mux_route_data *iomux_routes;
 	u32				niomux_routes;
 
-	void	(*pull_calc_reg)(struct rockchip_pin_bank *bank,
-				 int pin_num, struct regmap **regmap,
-				 int *reg, u8 *bit);
-	void	(*drv_calc_reg)(struct rockchip_pin_bank *bank,
-				int pin_num, struct regmap **regmap,
-				int *reg, u8 *bit);
-	int	(*schmitt_calc_reg)(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit);
+	int	(*set_mux)(struct rockchip_pin_bank *bank,
+			   int pin, int mux);
+	int	(*set_pull)(struct rockchip_pin_bank *bank,
+			    int pin_num, int pull);
+	int	(*set_drive)(struct rockchip_pin_bank *bank,
+			     int pin_num, int strength);
+	int	(*set_schmitt)(struct rockchip_pin_bank *bank,
+			       int pin_num, int enable);
 };
 
 /**
@@ -298,5 +286,12 @@ struct rockchip_pinctrl_priv {
 
 extern const struct pinctrl_ops rockchip_pinctrl_ops;
 int rockchip_pinctrl_probe(struct udevice *dev);
+void rockchip_get_recalced_mux(struct rockchip_pin_bank *bank, int pin,
+			       int *reg, u8 *bit, int *mask);
+bool rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
+			    int mux, u32 *reg, u32 *value);
+int rockchip_get_mux_data(int mux_type, int pin, u8 *bit, int *mask);
+int rockchip_translate_drive_value(int type, int strength);
+int rockchip_translate_pull_value(int type, int pull);
 
 #endif /* __DRIVERS_PINCTRL_ROCKCHIP_H */

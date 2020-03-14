@@ -124,7 +124,7 @@
 			};
 		};
 
-		pcie-controller {
+		pcie {
 			status = "okay";
 			/*
 			 * The two PCIe units are accessible through
@@ -258,6 +258,12 @@
 	mikrobus_adc: mcp3021@4c {
 		compatible = "microchip,mcp3021";
 		reg = <0x4c>;
+	};
+
+	eeprom@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
+		pagesize = <16>;
 	};
 };
 

@@ -6,7 +6,9 @@
 #include <common.h>
 #include <adc.h>
 #include <asm/io.h>
-#include <asm/arch/boot_mode.h>
+#include <asm/arch-rockchip/boot_mode.h>
+#include <dm/device.h>
+#include <dm/uclass.h>
 
 #if (CONFIG_ROCKCHIP_BOOT_MODE_REG == 0)
 
@@ -35,8 +37,26 @@ void set_back_to_bootrom_dnl_flag(void)
 __weak int rockchip_dnl_key_pressed(void)
 {
 	unsigned int val;
+	struct udevice *dev;
+	struct uclass *uc;
+	int ret;
 
-	if (adc_channel_single_shot("saradc", 1, &val)) {
+	ret = uclass_get(UCLASS_ADC, &uc);
+	if (ret)
+		return false;
+
+	ret = -ENODEV;
+	uclass_foreach_dev(dev, uc) {
+		if (!strncmp(dev->name, "saradc", 6)) {
+			ret = adc_channel_single_shot(dev->name, 1, &val);
+			break;
+		}
+	}
+
+	if (ret == -ENODEV) {
+		pr_warn("%s: no saradc device found\n", __func__);
+		return false;
+	} else if (ret) {
 		pr_err("%s: adc_channel_single_shot fail!\n", __func__);
 		return false;
 	}
@@ -61,13 +81,7 @@ int setup_boot_mode(void)
 	void *reg = (void *)CONFIG_ROCKCHIP_BOOT_MODE_REG;
 	int boot_mode = readl(reg);
 
-	/*
-	 * This should be handled using a driver-tree property and a suitable
-	 * driver which can read the appropriate settings. As it is, this
-	 * breaks chromebook_minnie.\
-	 *
-	 * rockchip_dnl_mode_check();
-	 */
+	rockchip_dnl_mode_check();
 
 	boot_mode = readl(reg);
 	debug("%s: boot mode 0x%08x\n", __func__, boot_mode);

@@ -4,6 +4,8 @@
  */
 
 #include <common.h>
+#include <clock_legacy.h>
+#include <cpu_func.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/clock.h>
@@ -342,7 +344,7 @@ int cpu_eth_init(bd_t * bis)
 
 int get_clocks(void)
 {
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 	gd->arch.sdhc_clk = mxc_get_clock(MXC_USDHC_CLK);
 #endif
 	return 0;

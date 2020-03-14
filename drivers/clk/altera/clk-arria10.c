@@ -4,9 +4,12 @@
  */
 
 #include <common.h>
+#include <malloc.h>
 #include <asm/io.h>
 #include <clk-uclass.h>
 #include <dm.h>
+#include <dm/device_compat.h>
+#include <dm/devres.h>
 #include <dm/lists.h>
 #include <dm/util.h>
 
@@ -254,7 +257,8 @@ static int socfpga_a10_clk_bind(struct udevice *dev)
 		    fdt_node_check_compatible(fdt, offset, "fixed-clock"))
 			continue;
 
-		if (pre_reloc_only && !dm_fdt_pre_reloc(fdt, offset))
+		if (pre_reloc_only &&
+		    !dm_ofnode_pre_reloc(offset_to_ofnode(offset)))
 			continue;
 
 		ret = device_bind_driver_to_node(dev, "clk-a10", name,

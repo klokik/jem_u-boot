@@ -227,9 +227,8 @@ out:
 error:
 	if (stbl) {
 		free(stbl->language);
-		if (idx > 0)
-			while (--idx >= 0)
-				free(stbl->strings[idx].string);
+		while (idx > 0)
+			free(stbl->strings[--idx].string);
 		free(stbl->strings);
 	}
 	free(stbl);
@@ -343,6 +342,7 @@ static struct efi_hii_packagelist *new_packagelist(void)
 	struct efi_hii_packagelist *hii;
 
 	hii = malloc(sizeof(*hii));
+	list_add_tail(&hii->link, &efi_package_lists);
 	hii->max_string_id = 0;
 	INIT_LIST_HEAD(&hii->string_tables);
 	INIT_LIST_HEAD(&hii->guid_list);
@@ -387,7 +387,7 @@ add_packages(struct efi_hii_packagelist *hii,
 				(struct efi_hii_guid_package *)package);
 			break;
 		case EFI_HII_PACKAGE_FORMS:
-			printf("\tForm package not supported\n");
+			EFI_PRINT("Form package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_STRINGS:
@@ -395,19 +395,19 @@ add_packages(struct efi_hii_packagelist *hii,
 				(struct efi_hii_strings_package *)package);
 			break;
 		case EFI_HII_PACKAGE_FONTS:
-			printf("\tFont package not supported\n");
+			EFI_PRINT("Font package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_IMAGES:
-			printf("\tImage package not supported\n");
+			EFI_PRINT("Image package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_SIMPLE_FONTS:
-			printf("\tSimple font package not supported\n");
+			EFI_PRINT("Simple font package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_DEVICE_PATH:
-			printf("\tDevice path package not supported\n");
+			EFI_PRINT("Device path package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_KEYBOARD_LAYOUT:
@@ -415,7 +415,7 @@ add_packages(struct efi_hii_packagelist *hii,
 				(struct efi_hii_keyboard_package *)package);
 			break;
 		case EFI_HII_PACKAGE_ANIMATIONS:
-			printf("\tAnimation package not supported\n");
+			EFI_PRINT("Animation package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_END:
@@ -465,7 +465,6 @@ new_package_list(const struct efi_hii_database_protocol *this,
 	}
 
 	hii->driver_handle = driver_handle;
-	list_add_tail(&hii->link, &efi_package_lists);
 	*handle = hii;
 
 	return EFI_EXIT(EFI_SUCCESS);
@@ -522,33 +521,33 @@ update_package_list(const struct efi_hii_database_protocol *this,
 			remove_guid_package(hii);
 			break;
 		case EFI_HII_PACKAGE_FORMS:
-			printf("\tForm package not supported\n");
+			EFI_PRINT("Form package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_STRINGS:
 			remove_strings_package(hii);
 			break;
 		case EFI_HII_PACKAGE_FONTS:
-			printf("\tFont package not supported\n");
+			EFI_PRINT("Font package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_IMAGES:
-			printf("\tImage package not supported\n");
+			EFI_PRINT("Image package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_SIMPLE_FONTS:
-			printf("\tSimple font package not supported\n");
+			EFI_PRINT("Simple font package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_DEVICE_PATH:
-			printf("\tDevice path package not supported\n");
+			EFI_PRINT("Device path package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_KEYBOARD_LAYOUT:
 			remove_keyboard_package(hii);
 			break;
 		case EFI_HII_PACKAGE_ANIMATIONS:
-			printf("\tAnimation package not supported\n");
+			EFI_PRINT("Animation package not supported\n");
 			ret = EFI_INVALID_PARAMETER;
 			break;
 		case EFI_HII_PACKAGE_END:
@@ -582,18 +581,22 @@ list_package_lists(const struct efi_hii_database_protocol *this,
 	struct efi_hii_packagelist *hii =
 				(struct efi_hii_packagelist *)handle;
 	int package_cnt, package_max;
-	efi_status_t ret = EFI_SUCCESS;
+	efi_status_t ret = EFI_NOT_FOUND;
 
 	EFI_ENTRY("%p, %u, %pUl, %p, %p", this, package_type, package_guid,
 		  handle_buffer_length, handle);
 
 	if (!handle_buffer_length ||
-	    (*handle_buffer_length && !handle))
-		return EFI_EXIT(EFI_INVALID_PARAMETER);
+	    (*handle_buffer_length && !handle)) {
+		ret = EFI_INVALID_PARAMETER;
+		goto out;
+	}
 
 	if ((package_type != EFI_HII_PACKAGE_TYPE_GUID && package_guid) ||
-	    (package_type == EFI_HII_PACKAGE_TYPE_GUID && !package_guid))
-		return EFI_EXIT(EFI_INVALID_PARAMETER);
+	    (package_type == EFI_HII_PACKAGE_TYPE_GUID && !package_guid)) {
+		ret = EFI_INVALID_PARAMETER;
+		goto out;
+	}
 
 	EFI_PRINT("package type=%x, guid=%pUl, length=%zu\n", (int)package_type,
 		  package_guid, *handle_buffer_length);
@@ -608,53 +611,28 @@ list_package_lists(const struct efi_hii_database_protocol *this,
 			if (!list_empty(&hii->guid_list))
 				break;
 			continue;
-		case EFI_HII_PACKAGE_FORMS:
-			printf("\tForm package not supported\n");
-			ret = EFI_INVALID_PARAMETER;
-			continue;
 		case EFI_HII_PACKAGE_STRINGS:
 			if (!list_empty(&hii->string_tables))
 				break;
-			continue;
-		case EFI_HII_PACKAGE_FONTS:
-			printf("\tFont package not supported\n");
-			ret = EFI_INVALID_PARAMETER;
-			continue;
-		case EFI_HII_PACKAGE_IMAGES:
-			printf("\tImage package not supported\n");
-			ret = EFI_INVALID_PARAMETER;
-			continue;
-		case EFI_HII_PACKAGE_SIMPLE_FONTS:
-			printf("\tSimple font package not supported\n");
-			ret = EFI_INVALID_PARAMETER;
-			continue;
-		case EFI_HII_PACKAGE_DEVICE_PATH:
-			printf("\tDevice path package not supported\n");
-			ret = EFI_INVALID_PARAMETER;
 			continue;
 		case EFI_HII_PACKAGE_KEYBOARD_LAYOUT:
 			if (!list_empty(&hii->keyboard_packages))
 				break;
 			continue;
-		case EFI_HII_PACKAGE_ANIMATIONS:
-			printf("\tAnimation package not supported\n");
-			ret = EFI_INVALID_PARAMETER;
-			continue;
-		case EFI_HII_PACKAGE_END:
-		case EFI_HII_PACKAGE_TYPE_SYSTEM_BEGIN:
-		case EFI_HII_PACKAGE_TYPE_SYSTEM_END:
 		default:
 			continue;
 		}
 
 		package_cnt++;
-		if (package_cnt <= package_max)
+		if (package_cnt <= package_max) {
 			*handle++ = hii;
-		else
+			ret = EFI_SUCCESS;
+		} else {
 			ret = EFI_BUFFER_TOO_SMALL;
+		}
 	}
 	*handle_buffer_length = package_cnt * sizeof(*handle);
-
+out:
 	return EFI_EXIT(ret);
 }
 

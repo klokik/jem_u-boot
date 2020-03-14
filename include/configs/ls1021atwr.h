@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
+ * Copyright 2019 NXP
  */
 
 #ifndef __CONFIG_H
@@ -66,15 +67,14 @@
 	board/freescale/ls1021atwr/ls102xa_rcw_sd_ifc.cfg
 #endif
 
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_NXP_ESBC
 /*
  * HDR would be appended at end of image and copied to DDR along
  * with U-Boot image.
  */
 #define CONFIG_U_BOOT_HDR_SIZE				(16 << 10)
-#endif /* ifdef CONFIG_SECURE_BOOT */
+#endif /* ifdef CONFIG_NXP_ESBC */
 
-#define CONFIG_SPL_TEXT_BASE		0x10000000
 #define CONFIG_SPL_MAX_SIZE		0x1a000
 #define CONFIG_SPL_STACK		0x1001d000
 #define CONFIG_SPL_PAD_TO		0x1c000
@@ -104,10 +104,7 @@
 #define CONFIG_SYS_DDR_SDRAM_BASE      0x80000000UL
 #define CONFIG_SYS_SDRAM_BASE          CONFIG_SYS_DDR_SDRAM_BASE
 
-#if !defined(CONFIG_SD_BOOT) && !defined(CONFIG_NAND_BOOT) && \
-	!defined(CONFIG_QSPI_BOOT)
-#define CONFIG_SYS_QE_FMAN_FW_IN_NOR
-#endif
+#define CONFIG_CHIP_SELECTS_PER_CTRL	4
 
 /*
  * IFC Definitions
@@ -213,7 +210,12 @@
 /*
  * I2C
  */
+#ifndef CONFIG_DM_I2C
 #define CONFIG_SYS_I2C
+#else
+#define CONFIG_I2C_SET_DEFAULT_BUS_NUM
+#define CONFIG_I2C_DEFAULT_BUS_NUMBER 0
+#endif
 #define CONFIG_SYS_I2C_MXC
 #define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 1 */
 #define CONFIG_SYS_I2C_MXC_I2C2		/* enable I2C bus 2 */
@@ -264,33 +266,7 @@
  */
 
 #ifdef CONFIG_TSEC_ENET
-#define CONFIG_MII_DEFAULT_TSEC		1
-#define CONFIG_TSEC1			1
-#define CONFIG_TSEC1_NAME		"eTSEC1"
-#define CONFIG_TSEC2			1
-#define CONFIG_TSEC2_NAME		"eTSEC2"
-#define CONFIG_TSEC3			1
-#define CONFIG_TSEC3_NAME		"eTSEC3"
-
-#define TSEC1_PHY_ADDR			2
-#define TSEC2_PHY_ADDR			0
-#define TSEC3_PHY_ADDR			1
-
-#define TSEC1_FLAGS			(TSEC_GIGABIT | TSEC_REDUCED)
-#define TSEC2_FLAGS			(TSEC_GIGABIT | TSEC_REDUCED)
-#define TSEC3_FLAGS			(TSEC_GIGABIT | TSEC_REDUCED)
-
-#define TSEC1_PHYIDX			0
-#define TSEC2_PHYIDX			0
-#define TSEC3_PHYIDX			0
-
-#define CONFIG_ETHPRIME			"eTSEC1"
-
-#define CONFIG_PHY_ATHEROS
-
-#define CONFIG_HAS_ETH0
-#define CONFIG_HAS_ETH1
-#define CONFIG_HAS_ETH2
+#define CONFIG_ETHPRIME			"ethernet@2d10000"
 #endif
 
 /* PCIe */
@@ -315,7 +291,8 @@
 
 #define BOOT_TARGET_DEVICES(func) \
 	func(MMC, mmc, 0) \
-	func(USB, usb, 0)
+	func(USB, usb, 0) \
+	func(DHCP, dhcp, na)
 #include <config_distro_bootcmd.h>
 
 #ifdef CONFIG_LPUART
@@ -336,6 +313,8 @@
 	"kernel_size=0x2800000\0"	\
 	"kernel_addr_sd=0x8000\0"	\
 	"kernel_size_sd=0x14000\0"	\
+	"$othbootargs\0"		\
+	"othbootargs=cma=64M@0x0-0xb0000000\0"	\
 	BOOTENV				\
 	"boot_scripts=ls1021atwr_boot.scr\0"	\
 	"boot_script_hdr=hdr_ls1021atwr_bs.out\0"	\
@@ -361,7 +340,8 @@
 			"${scriptaddr} ${prefix}${script}; "    \
 		"env exists secureboot && load ${devtype} "     \
 			"${devnum}:${distro_bootpart} "		\
-			"${scripthdraddr} ${prefix}${boot_script_hdr} " \
+			"${scripthdraddr} ${prefix}${boot_script_hdr}; " \
+			"env exists secureboot "	\
 			"&& esbc_validate ${scripthdraddr};"    \
 		"source ${scriptaddr}\0"	  \
 	"installer=load mmc 0:2 $load_addr "	\
@@ -395,6 +375,8 @@
 	"kernel_size_sd=0x14000\0"	\
 	"kernelhdr_addr_sd=0x4000\0"		\
 	"kernelhdr_size_sd=0x10\0"		\
+	"$othbootargs\0"			\
+	"othbootargs=cma=64M@0x0-0xb0000000\0"	\
 	BOOTENV				\
 	"boot_scripts=ls1021atwr_boot.scr\0"	\
 	"boot_script_hdr=hdr_ls1021atwr_bs.out\0"	\
@@ -446,7 +428,7 @@
 
 #undef CONFIG_BOOTCOMMAND
 #if defined(CONFIG_QSPI_BOOT) || defined(CONFIG_SD_BOOT_QSPI)
-#define CONFIG_BOOTCOMMAND "run distro_bootcmd; run qspi_bootcmd"	\
+#define CONFIG_BOOTCOMMAND "run distro_bootcmd; run qspi_bootcmd; "	\
 			   "env exists secureboot && esbc_halt"
 #elif defined(CONFIG_SD_BOOT)
 #define CONFIG_BOOTCOMMAND "run distro_bootcmd; run sd_bootcmd; "	\
@@ -474,6 +456,7 @@
 
 #ifdef CONFIG_SPL_BUILD
 #define CONFIG_SYS_MONITOR_BASE CONFIG_SPL_TEXT_BASE
+#undef CONFIG_DM_I2C
 #else
 #define CONFIG_SYS_MONITOR_BASE CONFIG_SYS_TEXT_BASE    /* start of monitor */
 #endif
@@ -486,17 +469,7 @@
 #define CONFIG_ENV_OVERWRITE
 
 #if defined(CONFIG_SD_BOOT)
-#define CONFIG_ENV_OFFSET		0x300000
 #define CONFIG_SYS_MMC_ENV_DEV		0
-#define CONFIG_ENV_SIZE			0x20000
-#elif defined(CONFIG_QSPI_BOOT)
-#define CONFIG_ENV_SIZE			0x2000
-#define CONFIG_ENV_OFFSET		0x300000
-#define CONFIG_ENV_SECT_SIZE		0x10000
-#else
-#define CONFIG_ENV_ADDR			(CONFIG_SYS_FLASH_BASE + 0x300000)
-#define CONFIG_ENV_SIZE			0x20000
-#define CONFIG_ENV_SECT_SIZE		0x20000 /* 128K (one sector) */
 #endif
 
 #include <asm/fsl_secure_boot.h>

@@ -5,8 +5,10 @@
  */
 
 #include <common.h>
+#include <env.h>
 #include <hwconfig.h>
 #include <command.h>
+#include <net.h>
 #include <netdev.h>
 #include <malloc.h>
 #include <fsl_mdio.h>
@@ -104,6 +106,8 @@ static const struct serdes_phy_config serdes1_phy_config[] = {
 	       EMI1, IO_SLOT_1},
 	     {WRIOP1_DPMAC2, {INPHI_PHY_ADDR1, INPHI_PHY_ADDR2, -1},
 	      EMI1, IO_SLOT_2} } },
+	{14, {{WRIOP1_DPMAC1, {INPHI_PHY_ADDR1, INPHI_PHY_ADDR2, -1},
+	       EMI1, IO_SLOT_1} } },
 	{15, {{WRIOP1_DPMAC1, {INPHI_PHY_ADDR1, INPHI_PHY_ADDR2, -1},
 	       EMI1, IO_SLOT_1},
 	     {WRIOP1_DPMAC2, {INPHI_PHY_ADDR1, INPHI_PHY_ADDR2, -1},
@@ -628,8 +632,9 @@ int fdt_fixup_dpmac_phy_handle(void *fdt, int dpmac_id, int node_phandle)
 int fdt_get_ioslot_offset(void *fdt, struct mii_dev *mii_dev, int fpga_offset)
 {
 	char mdio_ioslot_str[] = "mdio@00";
-	char mdio_mux_str[] = "mdio-mux-0";
 	struct lx2160a_qds_mdio *priv;
+	u64 reg;
+	u32 phandle;
 	int offset, mux_val;
 
 	/*Test if the MDIO bus is real mdio bus or muxing front end ?*/
@@ -643,15 +648,32 @@ int fdt_get_ioslot_offset(void *fdt, struct mii_dev *mii_dev, int fpga_offset)
 	debug("real_bus_num = %d, ioslot = %d\n",
 	      priv->realbusnum, priv->ioslot);
 
-	sprintf(mdio_mux_str, "mdio-mux-%1d", priv->realbusnum);
-	offset = fdt_subnode_offset(fdt, fpga_offset, mdio_mux_str);
+	if (priv->realbusnum == EMI1)
+		reg = CONFIG_SYS_FSL_WRIOP1_MDIO1;
+	else
+		reg = CONFIG_SYS_FSL_WRIOP1_MDIO2;
+
+	offset = fdt_node_offset_by_compat_reg(fdt, "fsl,fman-memac-mdio", reg);
 	if (offset < 0) {
-		printf("%s node not found under node %s in device tree\n",
-		       mdio_mux_str, fdt_get_name(fdt, fpga_offset, NULL));
+		printf("mdio@%llx node not found in device tree\n", reg);
+		return offset;
+	}
+
+	phandle = fdt_get_phandle(fdt, offset);
+	phandle = cpu_to_fdt32(phandle);
+	offset = fdt_node_offset_by_prop_value(fdt, -1, "mdio-parent-bus",
+					       &phandle, 4);
+	if (offset < 0) {
+		printf("mdio-mux-%d node not found in device tree\n",
+		       priv->realbusnum == EMI1 ? 1 : 2);
 		return offset;
 	}
 
 	mux_val = lx2160a_qds_get_mdio_mux_val(priv->realbusnum, priv->ioslot);
+	if (priv->realbusnum == EMI1)
+		mux_val >>= BRDCFG4_EMI1SEL_SHIFT;
+	else
+		mux_val >>= BRDCFG4_EMI2SEL_SHIFT;
 	sprintf(mdio_ioslot_str, "mdio@%x", (u8)mux_val);
 
 	offset = fdt_subnode_offset(fdt, offset, mdio_ioslot_str);
@@ -667,7 +689,7 @@ int fdt_create_phy_node(void *fdt, int offset, u8 phyaddr, int *subnodeoffset,
 			struct phy_device *phy_dev, int phandle)
 {
 	char phy_node_name[] = "ethernet-phy@00";
-	char phy_id_compatible_str[] = "ethernet-phy-id0000.0000";
+	char phy_id_compatible_str[] = "ethernet-phy-id0000.0000,";
 	int ret;
 
 	sprintf(phy_node_name, "ethernet-phy@%x", phyaddr);
@@ -675,11 +697,13 @@ int fdt_create_phy_node(void *fdt, int offset, u8 phyaddr, int *subnodeoffset,
 
 	*subnodeoffset = fdt_add_subnode(fdt, offset, phy_node_name);
 	if (*subnodeoffset <= 0) {
-		printf("Could not add subnode %s\n", phy_node_name);
+		printf("Could not add subnode %s inside node %s err = %s\n",
+		       phy_node_name, fdt_get_name(fdt, offset, NULL),
+		       fdt_strerror(*subnodeoffset));
 		return *subnodeoffset;
 	}
 
-	sprintf(phy_id_compatible_str, "ethernet-phy-id%04x.%04x",
+	sprintf(phy_id_compatible_str, "ethernet-phy-id%04x.%04x,",
 		phy_dev->phy_id >> 16, phy_dev->phy_id & 0xFFFF);
 	debug("phy_id_compatible_str %s\n", phy_id_compatible_str);
 
@@ -779,7 +803,6 @@ int fdt_fixup_board_phy(void *fdt)
 			}
 			if (dpmac_id == NUM_WRIOP_PORTS)
 				continue;
-
 			ret = fdt_create_phy_node(fdt, offset, i,
 						  &subnodeoffset,
 						  phy_dev, phandle);
@@ -792,6 +815,11 @@ int fdt_fixup_board_phy(void *fdt)
 				fdt_del_node(fdt, subnodeoffset);
 				break;
 			}
+			/* calculate offset again as new node addition may have
+			 * changed offset;
+			 */
+			offset = fdt_get_ioslot_offset(fdt, mii_dev,
+						       fpga_offset);
 			phandle++;
 		}
 

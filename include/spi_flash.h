@@ -13,17 +13,18 @@
 #include <linux/types.h>
 #include <linux/mtd/spi-nor.h>
 
-#ifndef CONFIG_SF_DEFAULT_SPEED
-# define CONFIG_SF_DEFAULT_SPEED	1000000
+/* by default ENV use the same parameters than SF command */
+#ifndef CONFIG_ENV_SPI_BUS
+# define CONFIG_ENV_SPI_BUS	CONFIG_SF_DEFAULT_BUS
 #endif
-#ifndef CONFIG_SF_DEFAULT_MODE
-# define CONFIG_SF_DEFAULT_MODE		SPI_MODE_3
+#ifndef CONFIG_ENV_SPI_CS
+# define CONFIG_ENV_SPI_CS	CONFIG_SF_DEFAULT_CS
 #endif
-#ifndef CONFIG_SF_DEFAULT_CS
-# define CONFIG_SF_DEFAULT_CS		0
+#ifndef CONFIG_ENV_SPI_MAX_HZ
+# define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
 #endif
-#ifndef CONFIG_SF_DEFAULT_BUS
-# define CONFIG_SF_DEFAULT_BUS		0
+#ifndef CONFIG_ENV_SPI_MODE
+# define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
 #endif
 
 struct spi_slave;
@@ -100,6 +101,18 @@ int spi_flash_erase_dm(struct udevice *dev, u32 offset, size_t len);
  *	other -ve value on error
  */
 int spl_flash_get_sw_write_prot(struct udevice *dev);
+
+/**
+ * spi_flash_std_probe() - Probe a SPI flash device
+ *
+ * This is the standard internal method for probing a SPI flash device to
+ * determine its type. It can be used in chip-specific drivers which need to
+ * do this, typically with of-platdata
+ *
+ * @dev: SPI-flash device to probe
+ * @return 0 if OK, -ve on error
+ */
+int spi_flash_std_probe(struct udevice *dev);
 
 int spi_flash_probe_bus_cs(unsigned int busnum, unsigned int cs,
 			   unsigned int max_hz, unsigned int spi_mode,

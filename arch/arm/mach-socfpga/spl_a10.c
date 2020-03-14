@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Copyright (C) 2012 Altera Corporation <www.altera.com>
+ *  Copyright (C) 2012-2019 Altera Corporation <www.altera.com>
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <hang.h>
 #include <asm/io.h>
 #include <asm/pl310.h>
 #include <asm/u-boot.h>
@@ -23,15 +25,17 @@
 #include <fdtdec.h>
 #include <watchdog.h>
 #include <asm/arch/pinmux.h>
+#include <asm/arch/fpga_manager.h>
+#include <mmc.h>
+#include <memalign.h>
+
+#define FPGA_BUFSIZ	16 * 1024
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static const struct socfpga_system_manager *sysmgr_regs =
-	(struct socfpga_system_manager *)SOCFPGA_SYSMGR_ADDRESS;
-
 u32 spl_boot_device(void)
 {
-	const u32 bsel = readl(&sysmgr_regs->bootinfo);
+	const u32 bsel = readl(socfpga_get_sysmgr_addr() + SYSMGR_A10_BOOTINFO);
 
 	switch (SYSMGR_GET_BOOTINFO_BSEL(bsel)) {
 	case 0x1:	/* FPGA (HPS2FPGA Bridge) */
@@ -68,23 +72,53 @@ u32 spl_boot_mode(const u32 boot_device)
 
 void spl_board_init(void)
 {
+	ALLOC_CACHE_ALIGN_BUFFER(char, buf, FPGA_BUFSIZ);
+
 	/* enable console uart printing */
 	preloader_console_init();
 	WATCHDOG_RESET();
 
 	arch_early_init_r();
+
+	/* If the full FPGA is already loaded, ie.from EPCQ, config fpga pins */
+	if (is_fpgamgr_user_mode()) {
+		int ret = config_pins(gd->fdt_blob, "shared");
+
+		if (ret)
+			return;
+
+		ret = config_pins(gd->fdt_blob, "fpga");
+		if (ret)
+			return;
+	} else if (!is_fpgamgr_early_user_mode()) {
+		/* Program IOSSM(early IO release) or full FPGA */
+		fpgamgr_program(buf, FPGA_BUFSIZ, 0);
+	}
+
+	/* If the IOSSM/full FPGA is already loaded, start DDR */
+	if (is_fpgamgr_early_user_mode() || is_fpgamgr_user_mode())
+		ddr_calibration_sequence();
+
+	if (!is_fpgamgr_user_mode())
+		fpgamgr_program(buf, FPGA_BUFSIZ, 0);
 }
 
 void board_init_f(ulong dummy)
 {
+	if (spl_early_init())
+		hang();
+
+	socfpga_get_managers_addr();
+
+	dcache_disable();
+
 	socfpga_init_security_policies();
 	socfpga_sdram_remap_zero();
+	socfpga_pl310_clear();
 
 	/* Assert reset to all except L4WD0 and L4TIMER0 */
 	socfpga_per_reset_all();
 	socfpga_watchdog_disable();
-
-	spl_early_init();
 
 	/* Configure the clock based on handoff */
 	cm_basic_init(gd->fdt_blob);

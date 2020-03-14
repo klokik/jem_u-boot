@@ -21,14 +21,11 @@
 /* Environment in eMMC, at the end of 2nd "boot sector" */
 #define CONFIG_SYS_MMC_ENV_DEV		0
 #define CONFIG_SYS_MMC_ENV_PART		2
-#define CONFIG_ENV_OFFSET		(-CONFIG_ENV_SIZE)
 
 /* Align LCD to 1MB boundary */
 #define CONFIG_LCD_ALIGNMENT	MMU_SECTION_SIZE
 
 /* SPI */
-#define CONFIG_SF_DEFAULT_MODE         SPI_MODE_0
-#define CONFIG_SF_DEFAULT_SPEED        24000000
 #define CONFIG_SPI_FLASH_SIZE          (4 << 20)
 
 #undef CONFIG_LOADADDR

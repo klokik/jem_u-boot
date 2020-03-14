@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2018 NXP
+ * Copyright 2018,2020 NXP
  */
 
 #ifndef __LX2_RDB_H
@@ -22,7 +22,9 @@
 #define QIXIS_RCFG_CTL_WATCHDOG_ENBLE	0x08
 #define QIXIS_LBMAP_MASK		0x0f
 #define QIXIS_LBMAP_SD
+#define QIXIS_LBMAP_EMMC
 #define QIXIS_RCW_SRC_SD           0x08
+#define QIXIS_RCW_SRC_EMMC         0x09
 #define NON_EXTENDED_DUTCFG
 
 /* VID */
@@ -60,6 +62,7 @@
 
 #define AQR107_PHY_ADDR1	0x04
 #define AQR107_PHY_ADDR2	0x05
+#define AQR107_IRQ_MASK		0x0C
 
 #define CORTINA_NO_FW_UPLOAD
 #define CORTINA_PHY_ADDR1	0x0
@@ -88,6 +91,8 @@
 /* Initial environment variables */
 #define CONFIG_EXTRA_ENV_SETTINGS		\
 	EXTRA_ENV_SETTINGS			\
+	"boot_scripts=lx2160ardb_boot.scr\0"	\
+	"boot_script_hdr=hdr_lx2160ardb_bs.out\0"	\
 	"lx2160ardb_vdd_mv=800\0"		\
 	"BOARD=lx2160ardb\0"			\
 	"xspi_bootcmd=echo Trying load from flexspi..;"		\

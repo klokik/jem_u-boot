@@ -19,8 +19,6 @@
 #define CONFIG_MACH_TYPE		MACH_TYPE_APALIS_T30
 
 /* Environment in eMMC, before config block at the end of 1st "boot sector" */
-#define CONFIG_ENV_OFFSET		(-CONFIG_ENV_SIZE + \
-					 CONFIG_TDX_CFG_BLOCK_OFFSET)
 #define CONFIG_SYS_MMC_ENV_DEV		0
 #define CONFIG_SYS_MMC_ENV_PART		1
 
@@ -28,8 +26,6 @@
 #define CONFIG_E1000_NO_NVM
 
 /* General networking support */
-#define CONFIG_IP_DEFRAG
-#define CONFIG_TFTP_BLOCKSIZE		16352
 #define CONFIG_TFTP_TSIZE
 
 /* Increase console I/O buffer size */
