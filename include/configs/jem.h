@@ -70,7 +70,6 @@
  * SPL
  */
 
-#define CONFIG_SPL_TEXT_BASE		0x40300000
 #define CONFIG_SPL_MAX_SIZE		(SRAM_SCRATCH_SPACE_ADDR - \
 					 CONFIG_SPL_TEXT_BASE)
 #define CONFIG_SPL_BSS_START_ADDR	0x80000000
@@ -105,8 +104,6 @@
 /*
  * Environment
  */
-
-#define CONFIG_ENV_SIZE		(128 * 1024)
 
 #define CONFIG_ENV_OVERWRITE
 
@@ -192,7 +189,6 @@
 		"if test ${boot_btn} = 3; then if test ${vbus_on_boot} = 1; then fastboot 0; fi; run stockboot; fi; " \
 		"if test ${boot_btn} = 3; then run stockboot; fi; " \
 		"if test ${boot_btn} = 2; then run localboot_rd; fi; " \
-		// "if test ${boot_btn} = 2; then run localboot; fi; " \
 		"if test ${boot_btn} = 1; then echo Skip to 3rd u-boot, todo..., now fastboot; fastboot 0; fi;"
 
 /*#define CONFIG_BOOTCOMMAND \
