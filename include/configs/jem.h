@@ -5,8 +5,10 @@
  * Copyright (C) 2019 Nickolas Dolhyi <0xb000@gmail.com>
  */
 
-#ifndef __CONFIG_H
-#define __CONFIG_H
+#ifndef __CONFIG_JEM_H
+#define __CONFIG_JEM_H
+
+#define CONFIG_MAX_RAM_BANK_SIZE	(1024 << 21)	/* 2GB */
 
 #include <asm/arch/cpu.h>
 #include <asm/arch/omap.h>
