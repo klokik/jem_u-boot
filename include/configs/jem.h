@@ -133,8 +133,10 @@
 	"bootdir=boot\0" \
 	"fdtfile=omap4-jem.dtb\0" \
 	"bootfile=zImage\0" \
+	"rdfile=initramfs.uImage\0" \
 	"loadfdt=fatload mmc ${bootpart} ${fdtaddr} ${bootdir}/${fdtfile}\0" \
 	"loadimage=fatload mmc ${bootpart} ${loadaddr} ${bootdir}/${bootfile}\0" \
+	"loadrd=fatload mmc ${bootpart} ${ramdisk_addr_r} ${bootdir}/${rdfile}\0" \
 	"optargs=mem=1G fbcon=rotate:0 loglevel=8 no_console_suspend\0" \
 	"nfsopts=nolock,nfsvers=3\0" \
 	"rootpath=/srv/nfs4/arch_jem\0" \
@@ -161,6 +163,12 @@
 		"run loadfdt; " \
 		"env set bootargs console=${console} console=tty0 fbcon=rotate:0 loglevel=8 mem=1G no_console_suspend root=179:14 rootfstype=ext4 rootwait rw; " \
 		"bootz ${loadaddr} - ${fdtaddr}\0" \
+	"localboot_rd=echo Booting from eMMC ...; " \
+		"run loadimage; " \
+		"run loadfdt; " \
+		"run loadrd; " \
+		"env set bootargs console=${console} console=tty0 fbcon=rotate:0 root=/dev/mmcblk0p13 rootpath=/media/LinuxRootArch rootwait rw; " \
+		"bootz ${loadaddr} ${ramdisk_addr_r} ${fdtaddr}\0" \
 	"ipaddr=10.1.10.9\0"\
 	"serverip=10.1.10.2\0"\
 
@@ -181,8 +189,10 @@
 #define CONFIG_SYS_LOAD_ADDR	0x83000000
 
 #define CONFIG_BOOTCOMMAND \
+		"if test ${boot_btn} = 3; then if test ${vbus_on_boot} = 1; then fastboot 0; fi; run stockboot; fi; " \
 		"if test ${boot_btn} = 3; then run stockboot; fi; " \
-		"if test ${boot_btn} = 2; then run localboot; fi; " \
+		"if test ${boot_btn} = 2; then run localboot_rd; fi; " \
+		// "if test ${boot_btn} = 2; then run localboot; fi; " \
 		"if test ${boot_btn} = 1; then echo Skip to 3rd u-boot, todo..., now fastboot; fastboot 0; fi;"
 
 /*#define CONFIG_BOOTCOMMAND \
